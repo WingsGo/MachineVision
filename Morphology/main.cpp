@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <opencv2/opencv.hpp>
+#include <QMessageBox>
 using namespace cv;
 
 Mat g_srcImage;
@@ -21,12 +22,16 @@ static void on_TopBlackHatNum(int,void *);
 int main(int argc, char *argv[])
 {
     g_srcImage = imread("../1.jpg");
-    if(!g_srcImage.data) qDebug() << QString::fromLocal8Bit("图片读取失败");
-    namedWindow("【原图】",0);
+    if(!g_srcImage.data)
+    {
+        QMessageBox::warning(nullptr,"warning",QString::fromLocal8Bit("图片读取失败"));
+        return -1;
+    }
+    namedWindow("【原图】",1);
     imshow("【原图】",g_srcImage);
-    namedWindow("【开/闭运算】",0);
-    namedWindow("【膨胀/腐蚀】",0);
-    namedWindow("【顶帽/黑帽】",0);
+    namedWindow("【开/闭运算】",1);
+    namedWindow("【膨胀/腐蚀】",1);
+    namedWindow("【顶帽/黑帽】",1);
     createTrackbar("内核","【开/闭运算】",&g_nOpenCloseNum,g_nMaxValue*2+1,on_OpenClose);
     createTrackbar("内核","【膨胀/腐蚀】",&g_nDilateErodeNum,g_nMaxValue*2+1,on_DilateErode);
     createTrackbar("内核","【顶帽/黑帽】",&g_nTopBlackHatNum,g_nMaxValue*2+1,on_TopBlackHatNum);

@@ -1,10 +1,12 @@
 TEMPLATE = app
 CONFIG += console c++11
 CONFIG -= app_bundle
-CONFIG -= qt
+CONFIG += qt
 
-SOURCES += main.cpp \
-    toolfunction.cpp
+QT    += core
+
+SOURCES += main.cpp
+
 INCLUDEPATH+=d:/opencv/build/include/opencv \
                     d:/opencv/build/include/opencv2 \
                    d:/opencv/build/include
@@ -36,6 +38,3 @@ LIBS += -LD:\opencv\build\x86\vc10\lib \
 -lopencv_legacy249 \
 -lopencv_flann249
 }
-
-HEADERS += \
-    toolfunction.h

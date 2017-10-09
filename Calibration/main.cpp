@@ -1,287 +1,185 @@
-﻿/*
-   Calibrate camera with chess board pattern.
+﻿#include "opencv2/core/core.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/calib3d/calib3d.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include <iostream>
+#include <fstream>
+#include <QFile>
+#include <QDebug>
 
-   - Editor: Menghan Xia, Yahui Liu.
-   - Data:   2015-07-28
-   - Email:  yahui.cvrs@gmail.com
-   - Address: Computer Vision and Remote Sensing(CVRS) Lab, Wuhan University.
-**/
-
-#include<iostream>
-#include <vector>
-#include <string>
-
-#include "cv.h"
-#include "highgui.h"
-
-#include "toolFunction.h"
-#define DEBUG_OUTPUT_INFO
-
-using namespace std;
 using namespace cv;
+using namespace std;
 
-void main()
+int main()
 {
-    char* folderPath = "E:/Images/New";           // image folder
-    std::vector<std::string> graphPaths;
-    std::vector<std::string> graphSuccess;
-
-    CalibrationAssist calAssist;
-
-    graphPaths = calAssist.get_filelist(folderPath); // collect image list
-
-#ifdef DEBUG_OUTPUT_INFO
-    std::cout << "loaded " << graphPaths.size() << " images"<< std::endl;
-#endif
-
-    if ( !graphPaths.empty() )
+    QFile file("../calibdata.txt");
+    if(!file.open(QFile::ReadOnly|QFile::Text))
     {
-#ifdef DEBUG_OUTPUT_INFO
-        std::cout << "Start corner detection ..." << std::endl;
-#endif
+        qDebug() << "open failed";
+        return false;
+    }
+    QString filename = file.readAll();
 
-        cv::Mat curGraph;  // current image
-        cv::Mat gray;      // gray image of current image
+    QStringList filenameList = filename.split("\n");
 
-        int imageCount = graphPaths.size();
-        int imageCountSuccess = 0;
-        cv::Size image_size;
-        cv::Size boardSize  = cv::Size(19, 19);     // chess board pattern size
-        cv::Size squareSize = cv::Size(15, 15);     // grid physical size, as a scale factor
-
-        std::vector<cv::Point2f> corners;                  // one image corner list
-        std::vector<std::vector<cv::Point2f> > seqCorners; // n images corner list
-
-        if ( graphPaths.size() < 3 )
+    ifstream fin("calibdata.txt"); /* 标定所用图像文件的路径 */
+    ofstream fout("caliberation_result.txt");  /* 保存标定结果的文件 */
+    //读取每一幅图像，从中提取出角点，然后对角点进行亚像素精确化
+    cout<<"开始提取角点………………";
+    int image_count=0;  /* 图像数量 */
+    Size image_size;  /* 图像的尺寸 */
+    Size board_size = Size(4,6);    /* 标定板上每行、列的角点数 */
+    vector<Point2f> image_points_buf;  /* 缓存每幅图像上检测到的角点 */
+    vector<vector<Point2f>> image_points_seq; /* 保存检测到的所有角点 */
+    int count= -1 ;//用于存储角点个数。
+    foreach (filename, filenameList)
+    {
+        image_count++;
+        // 用于观察检验输出
+        cout<<"image_count = "<<image_count<<endl;
+        /* 输出检验*/
+        cout<<"-->count = "<<count;
+        Mat imageInput=imread(filename.toStdString());
+        if (image_count == 1)  //读入第一张图片时获取图像宽高信息
         {
-#ifdef DEBUG_OUTPUT_INFO
-            std::cout << "Calibrate failed, with less than three images!" << std::endl;
-#endif
-            return ;
+            image_size.width = imageInput.cols;
+            image_size.height =imageInput.rows;
+            cout<<"image_size.width = "<<image_size.width<<endl;
+            cout<<"image_size.height = "<<image_size.height<<endl;
         }
 
-        for ( int i=0; i<graphPaths.size(); i++ )
+        /* 提取角点 */
+        if (0 == findChessboardCorners(imageInput,board_size,image_points_buf))
         {
-            string graphpath = folderPath;
-            graphpath += "/" + graphPaths[i];
-            curGraph = cv::imread(graphpath);
-
-            if ( curGraph.channels() == 3 )
-                cv::cvtColor( curGraph, gray, CV_BGR2GRAY );
-            else
-                curGraph.copyTo( gray );
-
-            // for every image, empty the corner list
-            std::vector<cv::Point2f>().swap( corners );
-
-            // corners detection
-            bool success = cv::findChessboardCorners( curGraph, boardSize, corners );
-
-            if ( success ) // succeed
-            {
-#ifdef DEBUG_OUTPUT_INFO
-                std::cout << i << " " << graphPaths[i] << " succeed"<< std::endl;
-#endif
-                int row = curGraph.rows;
-                int col = curGraph.cols;
-
-                graphSuccess.push_back( graphpath );
-                imageCountSuccess ++;
-
-                image_size = cv::Size( col, row );
-
-                // find sub-pixels
-                cv::cornerSubPix(
-                    gray,
-                    corners,
-                    cv::Size( 11, 11 ),
-                    cv::Size( -1, -1 ),
-                    cv::TermCriteria( CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1 ) );
-                seqCorners.push_back( corners );
-
-#if 1
-                // draw corners and show them in current image
-                cv::Mat imageDrawCorners;
-                if ( curGraph.channels() == 3 )
-                    curGraph.copyTo( imageDrawCorners );
-                else
-                    cv::cvtColor( curGraph, imageDrawCorners, CV_GRAY2RGB );
-
-                for ( int j = 0; j < corners.size(); j ++)
-                {
-                    cv::Point2f dotPoint = corners[j];
-                    cv::circle( imageDrawCorners, dotPoint, 3.0, cv::Scalar( 0, 255, 0 ), -1 );
-                    cv::Point2f pt_m = dotPoint + cv::Point2f(4,4);
-                    char text[100];
-                    sprintf( text, "%d", j+1 );  // corner indexes which start from 1
-                    cv::putText( imageDrawCorners, text, pt_m, 1, 0.5, cv::Scalar( 255, 0, 255 ) );
-                }
-
-                std::string pathTemp;
-                pathTemp = folderPath;
-                pathTemp += "/#" + graphPaths[i];
-
-                // save image drawn with corners and labeled with indexes
-                cv::imwrite( pathTemp, imageDrawCorners );
-#endif
-            }
-#ifdef DEBUG_OUTPUT_INFO
-            else // failed
-            {
-                std::cout << graphPaths[i] << " corner detect failed!" << std::endl;
-            }
-#endif
-
-        }
-#ifdef DEBUG_OUTPUT_INFO
-        std::cout << "Corner detect done!" << std::endl
-            << imageCountSuccess << " succeed! " << std::endl;
-#endif
-
-
-        if ( imageCountSuccess < 3 )
-        {
-#ifdef DEBUG_OUTPUT_INFO
-            std::cout << "Calibrated success " << imageCountSuccess
-                << " images, less than 3 images." << std::endl;
-#endif
-            return ;
+            cout<<"can not find chessboard corners!\n"; //找不到角点
+            exit(1);
         }
         else
         {
-#ifdef DEBUG_OUTPUT_INFO
-            std::cout << "Start calibration ..." << std::endl;
-#endif
-            cv::Point3f point3D;
-            std::vector<cv::Point3f> objectPoints;
-            std::vector<double> distCoeffs;
-            std::vector<double> rotation;
-            std::vector<double> translation;
-
-            std::vector<std::vector<cv::Point3f>> seqObjectPoints;
-            std::vector<std::vector<double>> seqRotation;
-            std::vector<std::vector<double>> seqTranslation;
-            cv::Mat_<double> cameraMatrix;
-
-            // calibration pattern points in the calibration pattern coordinate space
-            for ( int t=0; t<imageCountSuccess; t++ )
-            {
-                objectPoints.clear();
-                for ( int i=0; i<boardSize.height; i++ )
-                {
-                    for ( int j=0; j<boardSize.width; j++ )
-                    {
-                        point3D.x = i * squareSize.width;
-                        point3D.y = j * squareSize.height;
-                        point3D.z = 0;
-                        objectPoints.push_back(point3D);
-                    }
-                }
-                seqObjectPoints.push_back(objectPoints);
-            }
-
-            double reprojectionError = calibrateCamera(
-                seqObjectPoints,
-                seqCorners,
-                image_size,
-                cameraMatrix,
-                distCoeffs,
-                seqRotation,
-                seqTranslation,
-                CV_CALIB_FIX_ASPECT_RATIO|CV_CALIB_FIX_PRINCIPAL_POINT );
-
-#ifdef DEBUG_OUTPUT_INFO
-            std::cout << "Calibration done!" << std::endl;
-#endif
-            // calculate the calibration pattern points with the camera model
-            std::vector<cv::Mat_<double>> projectMats;
-
-            for ( int i=0; i<imageCountSuccess; i++ )
-            {
-                cv::Mat_<double> R, T;
-                // translate rotation vector to rotation matrix via Rodrigues transformation
-                cv::Rodrigues( seqRotation[i], R );
-                T = cv::Mat( cv::Matx31d(
-                    seqTranslation[i][0],
-                    seqTranslation[i][1],
-                    seqTranslation[i][2]) );
-
-                cv::Mat_<double> P = cameraMatrix * cv::Mat( cv::Matx34d(
-                    R(0,0), R(0,1), R(0,2), T(0),
-                    R(1,0), R(1,1), R(1,2), T(1),
-                    R(2,0), R(2,1), R(2,2), T(2) ) );
-
-                projectMats.push_back(P);
-            }
-
-            std::vector<cv::Point2d> PointSet;
-            int pointNum = boardSize.width*boardSize.height;
-            std::vector<cv::Point3d> objectClouds;
-            for ( int i=0; i<pointNum; i++ )
-            {
-                PointSet.clear();
-                for ( int j=0; j<imageCountSuccess; j++ )
-                {
-                    cv::Point2d tempPoint = seqCorners[j][i];
-                    PointSet.push_back(tempPoint);
-                }
-                // calculate calibration pattern points
-                cv::Point3d objectPoint = calAssist.triangulate(projectMats,PointSet);
-                objectClouds.push_back(objectPoint);
-            }
-            std::string pathTemp_point;
-            pathTemp_point = folderPath;
-            pathTemp_point += "/point.txt";
-            calAssist.save3dPoint(pathTemp_point,objectClouds);
-
-            std::string pathTemp_calib;
-            pathTemp_calib = folderPath;
-            pathTemp_calib += "/calibration.txt";
-
-            FILE* fp = fopen( pathTemp_calib.c_str(), "w" );
-            fprintf( fp, "The average of re-projection error : %lf\n", reprojectionError );
-            for ( int i=0; i<imageCountSuccess; i++ )
-            {
-                std::vector<cv::Point2f> errorList;
-                cv::projectPoints(
-                    seqObjectPoints[i],
-                    seqRotation[i],
-                    seqTranslation[i],
-                    cameraMatrix,
-                    distCoeffs,
-                    errorList );
-
-                corners.clear();
-                corners = seqCorners[i];
-
-                double meanError(0.0);
-                for ( int j=0; j<corners.size(); j++ )
-                {
-                    meanError += std::sqrt((errorList[j].x - corners[j].x)*(errorList[j].x - corners[j].x) +
-                        (errorList[j].y - corners[j].y)*(errorList[j].y - corners[j].y));
-                }
-                rotation.clear();
-                translation.clear();
-
-                rotation = seqRotation[i];
-                translation = seqTranslation[i];
-                fprintf( fp, "Re-projection of image %d：%lf\n", i+1, meanError/corners.size() );
-                fprintf( fp, "Rotation vector :\n" );
-                fprintf( fp, "%lf %lf %lf\n", rotation[0], rotation[1], rotation[2] );
-                fprintf( fp, "Translation vector :\n" );
-                fprintf( fp, "%lf %lf %lf\n\n", translation[0], translation[1], translation[2] );
-            }
-            fprintf( fp, "Camera internal matrix :\n" );
-            fprintf( fp, "%lf %lf %lf\n%lf %lf %lf\n%lf %lf %lf\n",
-                cameraMatrix(0,0), cameraMatrix(0,1), cameraMatrix(0,2),
-                cameraMatrix(1,0), cameraMatrix(1,1), cameraMatrix(1,2),
-                cameraMatrix(2,0), cameraMatrix(2,1), cameraMatrix(2,2));
-            fprintf( fp,"Distortion coefficient :\n" );
-            for ( int k=0; k<distCoeffs.size(); k++)
-                fprintf( fp, "%lf ", distCoeffs[k] );
-#ifdef DEBUG_OUTPUT_INFO
-            std::cout << "Results are saved!" << std::endl;
-#endif
+            Mat view_gray;
+            cvtColor(imageInput,view_gray,CV_RGB2GRAY);
+            /* 亚像素精确化 */
+            find4QuadCornerSubpix(view_gray,image_points_buf,Size(11,11)); //对粗提取的角点进行精确化
+            image_points_seq.push_back(image_points_buf);  //保存亚像素角点
+            /* 在图像上显示角点位置 */
+            drawChessboardCorners(view_gray,board_size,image_points_buf,true); //用于在图片中标记角点
+            imshow("Camera Calibration",view_gray);//显示图片
+            waitKey(500);//暂停0.5S
         }
     }
+    int total = image_points_seq.size();
+    cout<<"total = "<<total<<endl;
+    int CornerNum=board_size.width*board_size.height;  //每张图片上总的角点数
+    for (int ii=0 ; ii<total ;ii++)
+    {
+        if (0 == ii%CornerNum)// 24 是每幅图片的角点个数。此判断语句是为了输出 图片号，便于控制台观看
+        {
+            int i = -1;
+            i = ii/CornerNum;
+            int j=i+1;
+            cout<<"--> 第 "<<j <<"图片的数据 --> : "<<endl;
+        }
+        if (0 == ii%3)  // 此判断语句，格式化输出，便于控制台查看
+        {
+            cout<<endl;
+        }
+        else
+        {
+            cout.width(10);
+        }
+        //输出所有的角点
+        cout<<" -->"<<image_points_seq[ii][0].x;
+        cout<<" -->"<<image_points_seq[ii][0].y;
+    }
+    cout<<"角点提取完成！\n";
+
+    //以下是摄像机标定
+    cout<<"开始标定………………";
+    /*棋盘三维信息*/
+    Size square_size = Size(10,10);  /* 实际测量得到的标定板上每个棋盘格的大小 */
+    vector<vector<Point3f>> object_points; /* 保存标定板上角点的三维坐标 */
+    /*内外参数*/
+    Mat cameraMatrix=Mat(3,3,CV_32FC1,Scalar::all(0)); /* 摄像机内参数矩阵 */
+    vector<int> point_counts;  // 每幅图像中角点的数量
+    Mat distCoeffs=Mat(1,5,CV_32FC1,Scalar::all(0)); /* 摄像机的5个畸变系数：k1,k2,p1,p2,k3 */
+    vector<Mat> tvecsMat;  /* 每幅图像的旋转向量 */
+    vector<Mat> rvecsMat; /* 每幅图像的平移向量 */
+    /* 初始化标定板上角点的三维坐标 */
+    int i,j,t;
+    for (t=0;t<image_count;t++)
+    {
+        vector<Point3f> tempPointSet;
+        for (i=0;i<board_size.height;i++)
+        {
+            for (j=0;j<board_size.width;j++)
+            {
+                Point3f realPoint;
+                /* 假设标定板放在世界坐标系中z=0的平面上 */
+                realPoint.x = i*square_size.width;
+                realPoint.y = j*square_size.height;
+                realPoint.z = 0;
+                tempPointSet.push_back(realPoint);
+            }
+        }
+        object_points.push_back(tempPointSet);
+    }
+    /* 初始化每幅图像中的角点数量，假定每幅图像中都可以看到完整的标定板 */
+    for (i=0;i<image_count;i++)
+    {
+        point_counts.push_back(board_size.width*board_size.height);
+    }
+    /* 开始标定 */
+    calibrateCamera(object_points,image_points_seq,image_size,cameraMatrix,distCoeffs,rvecsMat,tvecsMat,0);
+    cout<<"标定完成！\n";
+    //对标定结果进行评价
+    cout<<"开始评价标定结果………………\n";
+    double total_err = 0.0; /* 所有图像的平均误差的总和 */
+    double err = 0.0; /* 每幅图像的平均误差 */
+    vector<Point2f> image_points2; /* 保存重新计算得到的投影点 */
+    cout<<"\t每幅图像的标定误差：\n";
+    fout<<"每幅图像的标定误差：\n";
+    for (i=0;i<image_count;i++)
+    {
+        vector<Point3f> tempPointSet=object_points[i];
+        /* 通过得到的摄像机内外参数，对空间的三维点进行重新投影计算，得到新的投影点 */
+        projectPoints(tempPointSet,rvecsMat[i],tvecsMat[i],cameraMatrix,distCoeffs,image_points2);
+        /* 计算新的投影点和旧的投影点之间的误差*/
+        vector<Point2f> tempImagePoint = image_points_seq[i];
+        Mat tempImagePointMat = Mat(1,tempImagePoint.size(),CV_32FC2);
+        Mat image_points2Mat = Mat(1,image_points2.size(), CV_32FC2);
+        for (int j = 0 ; j < tempImagePoint.size(); j++)
+        {
+            image_points2Mat.at<Vec2f>(0,j) = Vec2f(image_points2[j].x, image_points2[j].y);
+            tempImagePointMat.at<Vec2f>(0,j) = Vec2f(tempImagePoint[j].x, tempImagePoint[j].y);
+        }
+        err = norm(image_points2Mat, tempImagePointMat, NORM_L2);
+        total_err += err/=  point_counts[i];
+        std::cout<<"第"<<i+1<<"幅图像的平均误差："<<err<<"像素"<<endl;
+        fout<<"第"<<i+1<<"幅图像的平均误差："<<err<<"像素"<<endl;
+    }
+    std::cout<<"总体平均误差："<<total_err/image_count<<"像素"<<endl;
+    fout<<"总体平均误差："<<total_err/image_count<<"像素"<<endl<<endl;
+    std::cout<<"评价完成！"<<endl;
+    //保存定标结果
+    std::cout<<"开始保存定标结果………………"<<endl;
+    Mat rotation_matrix = Mat(3,3,CV_32FC1, Scalar::all(0)); /* 保存每幅图像的旋转矩阵 */
+    fout<<"相机内参数矩阵："<<endl;
+    fout<<cameraMatrix<<endl<<endl;
+    fout<<"畸变系数：\n";
+    fout<<distCoeffs<<endl<<endl<<endl;
+    for (int i=0; i<image_count; i++)
+    {
+        fout<<"第"<<i+1<<"幅图像的旋转向量："<<endl;
+        fout<<tvecsMat[i]<<endl;
+        /* 将旋转向量转换为相对应的旋转矩阵 */
+        Rodrigues(tvecsMat[i],rotation_matrix);
+        fout<<"第"<<i+1<<"幅图像的旋转矩阵："<<endl;
+        fout<<rotation_matrix<<endl;
+        fout<<"第"<<i+1<<"幅图像的平移向量："<<endl;
+        fout<<rvecsMat[i]<<endl<<endl;
+    }
+    std::cout<<"完成保存"<<endl;
+    fout<<endl;
+    system("pause");
+    return 0;
 }
