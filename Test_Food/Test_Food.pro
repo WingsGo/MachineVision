@@ -1,10 +1,24 @@
+#-------------------------------------------------
+#
+# Project created by QtCreator 2017-09-22T11:05:47
+#
+#-------------------------------------------------
+
+QT       += core gui
+
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+
+TARGET = Test_Food
 TEMPLATE = app
-CONFIG += console c++11
-CONFIG -= app_bundle
-CONFIG -= qt
+
 
 SOURCES += main.cpp \
-    toolfunction.cpp
+    green.cpp
+
+HEADERS  +=
+
+FORMS    += mainwindow.ui
+
 INCLUDEPATH+=d:/opencv/build/include/opencv \
                     d:/opencv/build/include/opencv2 \
                    d:/opencv/build/include
@@ -36,6 +50,3 @@ LIBS += -LD:\opencv\build\x86\vc10\lib \
 -lopencv_legacy249 \
 -lopencv_flann249
 }
-
-HEADERS += \
-    toolfunction.h
