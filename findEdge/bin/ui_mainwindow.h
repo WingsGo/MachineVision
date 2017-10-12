@@ -37,12 +37,7 @@ public:
     QHBoxLayout *horizontalLayout_2;
     QPushButton *pushButton_2;
     QLineEdit *lineEdit_2;
-    QHBoxLayout *horizontalLayout;
-    QPushButton *pushButton;
-    QLineEdit *lineEdit;
     QPushButton *pushButton_3;
-    QPushButton *pushButton_4;
-    QPushButton *pushButton_5;
     QSlider *horizontalSlider_2;
     QSlider *horizontalSlider_3;
     QSpacerItem *verticalSpacer;
@@ -78,36 +73,10 @@ public:
 
         verticalLayout->addLayout(horizontalLayout_2);
 
-        horizontalLayout = new QHBoxLayout();
-        horizontalLayout->setSpacing(6);
-        horizontalLayout->setObjectName(QStringLiteral("horizontalLayout"));
-        pushButton = new QPushButton(centralWidget);
-        pushButton->setObjectName(QStringLiteral("pushButton"));
-
-        horizontalLayout->addWidget(pushButton);
-
-        lineEdit = new QLineEdit(centralWidget);
-        lineEdit->setObjectName(QStringLiteral("lineEdit"));
-
-        horizontalLayout->addWidget(lineEdit);
-
-
-        verticalLayout->addLayout(horizontalLayout);
-
         pushButton_3 = new QPushButton(centralWidget);
         pushButton_3->setObjectName(QStringLiteral("pushButton_3"));
 
         verticalLayout->addWidget(pushButton_3);
-
-        pushButton_4 = new QPushButton(centralWidget);
-        pushButton_4->setObjectName(QStringLiteral("pushButton_4"));
-
-        verticalLayout->addWidget(pushButton_4);
-
-        pushButton_5 = new QPushButton(centralWidget);
-        pushButton_5->setObjectName(QStringLiteral("pushButton_5"));
-
-        verticalLayout->addWidget(pushButton_5);
 
         horizontalSlider_2 = new QSlider(centralWidget);
         horizontalSlider_2->setObjectName(QStringLiteral("horizontalSlider_2"));
@@ -155,13 +124,7 @@ public:
         lineEdit_2->setInputMask(QString());
         lineEdit_2->setText(QString());
         lineEdit_2->setPlaceholderText(QApplication::translate("MainWindow", "\351\230\210\345\200\274\345\214\226", 0));
-        pushButton->setText(QApplication::translate("MainWindow", "PushButton", 0));
-        lineEdit->setInputMask(QString());
-        lineEdit->setText(QString());
-        lineEdit->setPlaceholderText(QApplication::translate("MainWindow", "\351\253\230\346\226\257\346\273\244\346\263\242", 0));
         pushButton_3->setText(QApplication::translate("MainWindow", "\345\257\273\346\211\276\350\275\256\345\273\223", 0));
-        pushButton_4->setText(QApplication::translate("MainWindow", "\347\237\251\345\275\242\345\214\272\345\237\237", 0));
-        pushButton_5->setText(QApplication::translate("MainWindow", "\351\234\215\345\244\253\345\217\230\346\215\242", 0));
         menu_F->setTitle(QApplication::translate("MainWindow", "&F", 0));
     } // retranslateUi
 

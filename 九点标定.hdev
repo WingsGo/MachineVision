@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.1" halcon_version="13.0.1">
+<procedure name="main">
+<interface/>
+<body>
+<l>Px:=[974,1116,1540]</l>
+<l>Py:=[1759,804,1350]</l>
+<l>Qx:=[383.886,410.836,404.842]</l>
+<l>Qy:=[-31.052,-44.917,-24.479]</l>
+<l>vector_to_hom_mat2d(Px, Py,Qx, Qy, HomMat2D)</l>
+<l>affine_trans_point_2d(HomMat2D,1682, 398, Qx4, Qy4)</l>
+<l>affine_trans_point_2d(HomMat2D,697, 248, Qx5, Qy5)</l>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+</hdevelop>

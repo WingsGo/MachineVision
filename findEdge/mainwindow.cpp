@@ -6,8 +6,15 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    //图片预处理，灰度化并进行高斯滤波
-    srcMat = imread("1.jpg");
+    namedWindow("原图",WINDOW_NORMAL);
+    namedWindow("灰度图",WINDOW_NORMAL);
+    namedWindow("阈值化",WINDOW_NORMAL);
+    namedWindow("Canny边缘检测",WINDOW_NORMAL);
+    namedWindow("轮廓图",WINDOW_NORMAL);
+    namedWindow("最小包围矩形图",WINDOW_NORMAL);
+
+    //【1】图片预处理，转化为灰度图片并阈值化突出边缘轮廓
+    srcMat = imread("3.jpg");
     if(!srcMat.data)
         QMessageBox::warning(this,"warning","can not load image");
     imshow("原图",srcMat);
@@ -17,48 +24,48 @@ MainWindow::MainWindow(QWidget *parent) :
         threshold(grayMat,threMat,ui->lineEdit_2->text().toInt(),255,CV_THRESH_BINARY_INV);
         imshow("阈值化",threMat);
     });
-    connect(ui->pushButton,&QPushButton::clicked,[this]{
-        GaussianBlur(threMat,blurMat,Size(3,3),ui->lineEdit->text().toDouble());
-        imshow("高斯滤波",blurMat);
-    });
+
+    //【2】利用canny算子的高低阈值检测边缘
     connect(ui->horizontalSlider_2,&QSlider::valueChanged,this,&MainWindow::showImg);
     connect(ui->horizontalSlider_3,&QSlider::valueChanged,this,&MainWindow::showImg);
+
+    //【3】寻找边缘轮廓，并进行校验检测边界
     connect(ui->pushButton_3,&QPushButton::clicked,[this]{
         //绘制轮廓图
         vector<Vec4i>hierarchy(10000);
         vector<Mat>contours(10000);//手动分配内存空间大小
-        findContours(cannyMat, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-        Mat result(cannyMat.size(),CV_8U,Scalar(255));
-        drawContours(result,contours,-1,Scalar(0),3);
-        imshow("轮廓图",result);
+        findContours(cannyMat, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+        Mat outlineMat(cannyMat.size(),CV_8U,Scalar(255));
+        drawContours(outlineMat,contours,-1,Scalar(0),3);
+        imshow("轮廓图",outlineMat);
         vector<RotatedRect> rects;
-        Mat minRect(cannyMat.size(),CV_8U,Scalar(255));
+        //Mat edgeMat(cannyMat.size(),CV_8U,Scalar(255));
         for(vector<Mat>::iterator itc = contours.begin();itc!=contours.end();itc++)
         {
+            //包围轮廓的最小矩形
             RotatedRect mr = minAreaRect(Mat(*itc));
             if(verifySizes(mr))
             {
                 Point2f vertex[4];
                 mr.points(vertex);
                 for(int i =0;i<4;i++)
-                    line(srcMat,vertex[i],vertex[(i+1)%4],Scalar(0,0,0),2,CV_AA);
+                    line(srcMat,vertex[i],vertex[(i+1)%4],Scalar(0,0,255),2,CV_AA);
+                qDebug() << QString::fromLocal8Bit("顶点坐标1") << vertex[0].x << vertex[0].y;
+                qDebug() << QString::fromLocal8Bit("顶点坐标2") << vertex[1].x << vertex[1].y;
+                qDebug() << QString::fromLocal8Bit("顶点坐标3") << vertex[2].x << vertex[2].y;
+                qDebug() << QString::fromLocal8Bit("顶点坐标4") << vertex[3].x << vertex[3].y;
                 rects.push_back(mr);
+                qDebug() << QString::fromLocal8Bit("符合标准的矩形数量：") << rects.size();
             }
         }
         imshow("最小包围矩形图",srcMat);
     });
-    connect(ui->pushButton_5,&QPushButton::clicked,[this]{
-        vector<Vec4i> lines(1000);
-        HoughLinesP(cannyMat,lines,1,CV_PI/180,80,50,10);
-        qDebug() << lines.size();
-        Mat houghMay(cannyMat.size(),CV_8U,Scalar(255));
-        for(size_t i=0;i<lines.size();i++)
-        {
-            Vec4i lineo = lines[i];
-            line(houghMay,Point(lineo[0],lineo[1]),Point(lineo[2],lineo[3]),Scalar(0,0,0),3,CV_AA);
-        }
-        imshow("霍夫变换",houghMay);
-    });
+
+
+    //    connect(ui->pushButton,&QPushButton::clicked,[this]{
+    //        GaussianBlur(threMat,blurMat,Size(3,3),ui->lineEdit->text().toDouble());
+    //        imshow("高斯滤波",blurMat);
+    //    });
 }
 
 MainWindow::~MainWindow()
@@ -75,9 +82,9 @@ bool MainWindow::verifySizes(RotatedRect candidate)
 {
     //根据长宽比和面积来验证
     float error = 0.4;
-    const float aspect = 2;
-    int min = 355*355*aspect;
-    int max = 1350*aspect*1350;
+    const float aspect = 1.52;
+    int min = 400*aspect*400;
+    int max = 900*aspect*900;
     float rmin = aspect-aspect*error;
     float rmax = aspect+aspect*error;
 
